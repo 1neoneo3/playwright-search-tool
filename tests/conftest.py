@@ -2,8 +2,9 @@
 
 import sys
 import asyncio
+import pytest
 from pathlib import Path
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime
 import time
 
@@ -11,14 +12,9 @@ import time
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root / "src"))
 
-# Configure asyncio for pytest-asyncio
-import pytest_asyncio
-
 # Mock playwright globally before any imports
-sys.modules['playwright'] = Mock()
-sys.modules['playwright.async_api'] = Mock()
-
-import pytest
+sys.modules["playwright"] = Mock()
+sys.modules["playwright.async_api"] = Mock()
 
 
 @pytest.fixture
@@ -28,18 +24,18 @@ def mock_playwright():
     mock_browser = AsyncMock()
     mock_context = AsyncMock()
     mock_page = AsyncMock()
-    
+
     # Setup the mock chain
     mock_playwright.chromium.launch = AsyncMock(return_value=mock_browser)
     mock_browser.new_context = AsyncMock(return_value=mock_context)
     mock_context.new_page = AsyncMock(return_value=mock_page)
-    
+
     # Mock cleanup methods
     mock_page.close = AsyncMock()
     mock_context.close = AsyncMock()
     mock_browser.close = AsyncMock()
     mock_playwright.stop = AsyncMock()
-    
+
     # Mock page methods
     mock_page.goto = AsyncMock()
     mock_page.wait_for_selector = AsyncMock()
@@ -47,12 +43,12 @@ def mock_playwright():
     mock_page.evaluate = AsyncMock(return_value="")
     mock_page.set_default_timeout = Mock()
     mock_page.add_init_script = AsyncMock()
-    
+
     return {
-        'playwright': mock_playwright,
-        'browser': mock_browser,
-        'context': mock_context,
-        'page': mock_page
+        "playwright": mock_playwright,
+        "browser": mock_browser,
+        "context": mock_context,
+        "page": mock_page,
     }
 
 
@@ -60,7 +56,7 @@ def mock_playwright():
 def sample_search_results():
     """Create sample SearchResult objects for testing."""
     from src.playwright_search.core.models import SearchResult
-    
+
     return [
         SearchResult(
             title="First Result",
@@ -69,24 +65,24 @@ def sample_search_results():
             position=1,
             source="google",
             extracted_date=datetime(2024, 8, 30),
-            recency_score=0.9
+            recency_score=0.9,
         ),
         SearchResult(
             title="Second Result",
-            url="https://example.com/2", 
+            url="https://example.com/2",
             snippet="Second result snippet",
             position=2,
             source="bing",
             extracted_date=datetime(2024, 8, 25),
-            recency_score=0.7
+            recency_score=0.7,
         ),
         SearchResult(
             title="Third Result",
             url="https://example.com/3",
-            snippet="Third result snippet", 
+            snippet="Third result snippet",
             position=3,
-            source="google"
-        )
+            source="google",
+        ),
     ]
 
 
@@ -94,13 +90,13 @@ def sample_search_results():
 def sample_search_plan():
     """Create a sample SearchPlan for testing."""
     from src.playwright_search.core.models import SearchTask, SearchPlan
-    
+
     tasks = [
         SearchTask("Python tutorial", "google", num_results=5),
         SearchTask("Python guide", "bing", num_results=5),
-        SearchTask("Python documentation", "duckduckgo", num_results=3)
+        SearchTask("Python documentation", "duckduckgo", num_results=3),
     ]
-    
+
     return SearchPlan("Python Programming", tasks, time.time())
 
 
@@ -111,24 +107,27 @@ def mock_playwright_import():
     # Enhanced mocking for async playwright
     mock_pw = Mock()
     mock_async_pw = Mock()
-    
+
     # Mock async_playwright function
     async def mock_start():
         return mock_pw
-    
+
     mock_async_pw_instance = Mock()
     mock_async_pw_instance.start = mock_start
     mock_async_pw.return_value = mock_async_pw_instance
-    
-    with patch.dict('sys.modules', {
-        'playwright': Mock(),
-        'playwright.async_api': Mock(async_playwright=mock_async_pw),
-    }):
+
+    with patch.dict(
+        "sys.modules",
+        {
+            "playwright": Mock(),
+            "playwright.async_api": Mock(async_playwright=mock_async_pw),
+        },
+    ):
         yield
 
 
 # Configure pytest-asyncio
-pytest_plugins = ('pytest_asyncio',)
+pytest_plugins = ("pytest_asyncio",)
 
 
 def pytest_configure(config):

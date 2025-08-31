@@ -4,4 +4,4 @@ from .google import GoogleEngine
 from .bing import BingEngine
 from .duckduckgo import DuckDuckGoEngine
 
-__all__ = ['GoogleEngine', 'BingEngine', 'DuckDuckGoEngine']
+__all__ = ["GoogleEngine", "BingEngine", "DuckDuckGoEngine"]

@@ -12,12 +12,12 @@ from .cli import main
 
 __all__ = [
     "BaseSearchEngine",
-    "SearchResult", 
+    "SearchResult",
     "SearchEngineConfig",
     "GoogleEngine",
-    "BingEngine", 
+    "BingEngine",
     "DuckDuckGoEngine",
     "SearchPlanGenerator",
     "ParallelSearchEngine",
-    "main"
+    "main",
 ]
