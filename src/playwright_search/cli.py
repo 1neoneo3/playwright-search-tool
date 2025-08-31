@@ -14,9 +14,9 @@ import time
 import logging
 
 from .engines import GoogleEngine, BingEngine, DuckDuckGoEngine
-from .search_engine import SearchResult
-from .content_extractor import ContentExtractor
-from .date_utils import filter_and_sort_by_date
+from .core.models import SearchResult, SearchEngineConfig
+from .utils.result_processor import ResultProcessor
+from .utils.validators import InputValidator
 from .parallel_search import SearchPlanGenerator, ParallelSearchEngine, SearchPlan
 
 console = Console()
@@ -46,7 +46,8 @@ async def search_with_engine(engine_class, query: str, num_results: int,
     ) as progress:
         task = progress.add_task("search", engine=engine_name)
         
-        async with engine_class(headless=headless, timeout=timeout) as engine:
+        config = SearchEngineConfig(headless=headless, timeout=timeout)
+        async with engine_class(config=config) as engine:
             results = await engine.search(query, num_results)
             
             if extract_content and results:
@@ -222,7 +223,7 @@ def search(query: str, num_results: int, engine: str, headless: bool,
         
     # Apply date filtering and sorting
     if recent_only or sort_by_date:
-        scored_results = filter_and_sort_by_date(all_results, recent_only, months)
+        scored_results = ResultProcessor.filter_and_sort_by_date(all_results, recent_only, months)
         filtered_results = [result for result, score in scored_results]
         
         # Show filtering stats
@@ -260,7 +261,8 @@ def extract(url: str, headless: bool, timeout: int, output_json: bool, verbose: 
         ) as progress:
             task = progress.add_task("extract", total=None)
             
-            async with GoogleEngine(headless=headless, timeout=timeout * 1000) as engine:
+            config = SearchEngineConfig(headless=headless, timeout=timeout * 1000)
+            async with GoogleEngine(config=config) as engine:
                 progress.update(task, description=f"[bold blue]Loading {url[:50]}...")
                 content = await engine.extract_text_content(url)
                 progress.update(task, description=f"[bold green]Content extracted!")
@@ -370,7 +372,8 @@ def plan(topic: str, plan_type: str, engines: str, keywords: Optional[str],
         console.print(f"\n[yellow]Executing search plan with max {max_concurrent} concurrent searches...[/yellow]")
         
         # Execute parallel search
-        parallel_engine = ParallelSearchEngine(max_concurrent, headless, timeout)
+        config = SearchEngineConfig(headless=headless, timeout=timeout * 1000)
+        parallel_engine = ParallelSearchEngine(max_concurrent, config)
         result = asyncio.run(parallel_engine.execute_plan(search_plan))
         
         # Generate and display summary

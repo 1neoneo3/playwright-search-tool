@@ -7,12 +7,13 @@ A powerful, reliable web search tool using Playwright for browser automation. Th
 - **Multiple Search Engines**: Google, Bing, DuckDuckGo support
 - **Browser Automation**: Uses Playwright for reliable, JavaScript-enabled searches
 - **Content Extraction**: Extract full page content from search results
-- **Date Filtering**: Filter results by recency and sort by date
-- **Parallel Search**: Execute multiple searches concurrently with intelligent planning
+- **Date Filtering**: Advanced date extraction and filtering with Japanese/English support
+- **Parallel Search**: Execute multiple searches concurrently with intelligent keyword planning
 - **Rich CLI Interface**: Beautiful terminal output with progress indicators
 - **JSON Output**: Machine-readable output for automation
 - **Stealth Mode**: Avoids detection with realistic browser behavior
-- **Fast & Concurrent**: Parallel processing for multiple engines and keywords
+- **Modular Architecture**: Clean, maintainable codebase with loose coupling
+- **Comprehensive Validation**: Input validation and error handling throughout
 
 ## Installation
 
@@ -96,6 +97,48 @@ psearch extract https://example.com/article
 # Extract with JSON output
 psearch extract https://example.com/article --json
 ```
+
+## Architecture
+
+The search tool uses a modular, loosely-coupled architecture:
+
+### Core Components
+
+```
+src/playwright_search/
+├── core/                    # Core abstractions
+│   ├── base.py             # BaseSearchEngine abstract class
+│   └── models.py           # Data models (SearchResult, etc.)
+├── engines/                 # Search engine implementations
+│   ├── google.py           # Google search engine
+│   ├── bing.py             # Bing search engine
+│   └── duckduckgo.py       # DuckDuckGo search engine
+├── utils/                   # Utility functions
+│   ├── date_parser.py      # Date extraction utilities
+│   ├── result_processor.py # Result filtering/merging
+│   └── validators.py       # Input validation
+├── const.py                # Constants and configuration
+├── parallel_search.py      # Parallel search orchestration
+└── cli.py                  # Command line interface
+```
+
+### Design Principles
+
+- **Separation of Concerns**: Each module has a single responsibility
+- **Loose Coupling**: Components interact through well-defined interfaces
+- **Extensibility**: Easy to add new search engines or utilities
+- **Maintainability**: Clean, readable code with comprehensive validation
+- **Testability**: Modular structure enables thorough testing
+
+### Key Classes
+
+- `BaseSearchEngine`: Abstract base class for all search engines
+- `SearchResult`: Data model for search results with date/content extraction
+- `SearchEngineConfig`: Configuration object for engine settings
+- `ParallelSearchEngine`: Orchestrates concurrent multi-engine searches
+- `SearchPlanGenerator`: Creates intelligent keyword search plans
+- `ResultProcessor`: Handles result filtering, sorting, and deduplication
+- `InputValidator`: Validates all user inputs and configuration
 
 ## CLI Reference
 
@@ -183,17 +226,42 @@ You can also use the search engines programmatically:
 
 ```python
 import asyncio
-from playwright_search import GoogleEngine, SearchResult
+from playwright_search import GoogleEngine, SearchEngineConfig, SearchResult
 
 async def main():
-    async with GoogleEngine(headless=True) as engine:
+    # Configure search engine
+    config = SearchEngineConfig(headless=True, timeout=30000)
+    
+    async with GoogleEngine(config=config) as engine:
         results = await engine.search("Python tutorials", num_results=5)
         
         for result in results:
             print(f"Title: {result.title}")
             print(f"URL: {result.url}")
             print(f"Snippet: {result.snippet}")
+            if result.extracted_date:
+                print(f"Date: {result.extracted_date}")
             print("---")
+
+# Parallel search example
+from playwright_search import ParallelSearchEngine, SearchPlanGenerator
+
+async def parallel_search_example():
+    # Generate search plan
+    plan = SearchPlanGenerator.create_plan(
+        topic="Machine Learning",
+        plan_type="technology", 
+        engines=["google", "bing"],
+        num_results=5
+    )
+    
+    # Execute parallel search
+    parallel_engine = ParallelSearchEngine(max_concurrent=3)
+    result = await parallel_engine.execute_plan(plan)
+    
+    # Get merged results
+    merged_results = parallel_engine.merge_and_deduplicate_results(result)
+    print(f"Found {len(merged_results)} unique results")
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -3,87 +3,17 @@
 import asyncio
 import time
 from typing import List, Dict, Optional, Tuple, Any
-from dataclasses import dataclass
-from concurrent.futures import ThreadPoolExecutor
 import logging
 
 from .engines import GoogleEngine, BingEngine, DuckDuckGoEngine
-from .search_engine import SearchResult
-from .date_utils import filter_and_sort_by_date
+from .core.models import SearchResult, SearchTask, SearchPlan, ParallelSearchResult, SearchEngineConfig
+from .utils.result_processor import ResultProcessor
+from .const import PLAN_TEMPLATES
 
 logger = logging.getLogger(__name__)
 
-@dataclass
-class SearchTask:
-    """Represents a single search task."""
-    keyword: str
-    engine: str = "google"
-    num_results: int = 10
-    extract_content: bool = False
-    recent_only: bool = False
-    months: int = 3
-
-@dataclass
-class SearchPlan:
-    """Represents a complete search plan with multiple tasks."""
-    topic: str
-    tasks: List[SearchTask]
-    created_at: float
-    
-    def __post_init__(self):
-        if not hasattr(self, 'created_at') or self.created_at is None:
-            self.created_at = time.time()
-
-@dataclass
-class ParallelSearchResult:
-    """Results from parallel search execution."""
-    plan: SearchPlan
-    results: Dict[str, List[SearchResult]]
-    execution_time: float
-    success_count: int
-    error_count: int
-    errors: Dict[str, str]
-
 class SearchPlanGenerator:
     """Generates search plans for comprehensive topic research."""
-    
-    TOPIC_TEMPLATES = {
-        'technology': [
-            '{topic} 最新情報',
-            '{topic} 技術動向',
-            '{topic} リリース情報',
-            '{topic} tutorial guide',
-            '{topic} best practices'
-        ],
-        'research': [
-            '{topic} 研究',
-            '{topic} 論文',
-            '{topic} analysis report',
-            '{topic} case study',
-            '{topic} データ分析'
-        ],
-        'news': [
-            '{topic} ニュース',
-            '{topic} 最新',
-            '{topic} latest news',
-            '{topic} updates',
-            '{topic} 発表'
-        ],
-        'comparison': [
-            '{topic} 比較',
-            '{topic} vs',
-            '{topic} comparison',
-            '{topic} 選び方',
-            '{topic} review'
-        ],
-        'tutorial': [
-            '{topic} 使い方',
-            '{topic} 入門',
-            '{topic} tutorial',
-            '{topic} how to',
-            '{topic} ガイド'
-        ]
-    }
     
     @classmethod
     def create_plan(cls, topic: str, plan_type: str = 'comprehensive', 
@@ -108,10 +38,10 @@ class SearchPlanGenerator:
         if plan_type == 'comprehensive':
             # Use multiple template types for comprehensive coverage
             templates = []
-            for template_list in cls.TOPIC_TEMPLATES.values():
+            for template_list in PLAN_TEMPLATES.values():
                 templates.extend(template_list[:2])  # Take first 2 from each category
         else:
-            templates = cls.TOPIC_TEMPLATES.get(plan_type, cls.TOPIC_TEMPLATES['technology'])
+            templates = PLAN_TEMPLATES.get(plan_type, PLAN_TEMPLATES['technology'])
         
         # Generate search tasks
         for template in templates[:8]:  # Limit to 8 searches to avoid overwhelming
@@ -166,18 +96,16 @@ class ParallelSearchEngine:
         'ddg': DuckDuckGoEngine
     }
     
-    def __init__(self, max_concurrent: int = 5, headless: bool = True, timeout: int = 30):
+    def __init__(self, max_concurrent: int = 5, config: Optional[SearchEngineConfig] = None):
         """
         Initialize parallel search engine.
         
         Args:
             max_concurrent: Maximum number of concurrent searches
-            headless: Whether to run browsers in headless mode
-            timeout: Timeout for individual searches in seconds
+            config: Optional SearchEngineConfig to use for engines
         """
         self.max_concurrent = max_concurrent
-        self.headless = headless
-        self.timeout = timeout * 1000  # Convert to milliseconds
+        self.config = config or SearchEngineConfig()
         
     async def execute_plan(self, plan: SearchPlan) -> ParallelSearchResult:
         """
@@ -204,12 +132,12 @@ class ParallelSearchEngine:
                 task_key = f"{task.keyword} ({task.engine})"
                 try:
                     engine_class = self.ENGINE_CLASSES[task.engine]
-                    async with engine_class(headless=self.headless, timeout=self.timeout) as engine:
+                    async with engine_class(config=self.config) as engine:
                         search_results = await engine.search(task.keyword, task.num_results)
                         
                         # Apply date filtering if requested
                         if task.recent_only and search_results:
-                            scored_results = filter_and_sort_by_date(search_results, task.recent_only, task.months)
+                            scored_results = ResultProcessor.filter_and_sort_by_date(search_results, task.recent_only, task.months)
                             search_results = [result for result, score in scored_results]
                         
                         # Extract content if requested (limited to first few results for performance)
@@ -269,22 +197,14 @@ class ParallelSearchEngine:
             List of unique SearchResult objects, sorted by relevance
         """
         all_results = []
-        seen_urls = set()
         
-        # Collect all results
+        # Collect all results and add search context
         for task_key, results in parallel_result.results.items():
-            for result in results:
-                # Use URL as deduplication key
-                if result.url not in seen_urls:
-                    seen_urls.add(result.url)
-                    # Add search context to result
-                    result.search_context = task_key
-                    all_results.append(result)
+            results_with_context = ResultProcessor.add_search_context(results, task_key)
+            all_results.extend(results_with_context)
         
-        # Sort by recency score if available, then by position
-        all_results.sort(key=lambda x: (getattr(x, 'recency_score', 0), -x.position), reverse=True)
-        
-        return all_results
+        # Deduplicate and merge
+        return ResultProcessor.merge_results([all_results], deduplicate=True)
     
     def generate_search_summary(self, parallel_result: ParallelSearchResult) -> Dict[str, Any]:
         """Generate a summary of search results."""
