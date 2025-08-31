@@ -348,6 +348,7 @@ class TestParallelSearchEngine:
 
         async def mock_search_with_timing(*args, **kwargs):
             import asyncio
+
             call_times.append(time.time())
             await asyncio.sleep(0.1)  # Small delay
             return [SearchResult("Test", "https://example.com", "Test", 1, "google")]
