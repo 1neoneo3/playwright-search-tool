@@ -1,0 +1,214 @@
+"""Command Line Interface for Playwright Search Tool."""
+
+import asyncio
+import click
+import json
+from rich.console import Console
+from rich.table import Table
+from rich.panel import Panel
+from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.text import Text
+from typing import List, Optional
+import sys
+import time
+import logging
+
+from .engines import GoogleEngine, BingEngine, DuckDuckGoEngine
+from .search_engine import SearchResult
+from .content_extractor import ContentExtractor
+
+console = Console()
+logger = logging.getLogger(__name__)
+
+ENGINES = {
+    'google': GoogleEngine,
+    'bing': BingEngine, 
+    'duckduckgo': DuckDuckGoEngine,
+    'ddg': DuckDuckGoEngine,
+    'all': None  # Special case for all engines
+}
+
+
+async def search_with_engine(engine_class, query: str, num_results: int, 
+                           headless: bool, timeout: int, extract_content: bool) -> List[SearchResult]:
+    """Perform search with a specific engine."""
+    
+    results = []
+    engine_name = engine_class.__name__.replace('Engine', '')
+    
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[bold blue]Searching with {task.fields[engine]}..."),
+        console=console,
+        transient=True
+    ) as progress:
+        task = progress.add_task("search", engine=engine_name)
+        
+        async with engine_class(headless=headless, timeout=timeout) as engine:
+            results = await engine.search(query, num_results)
+            
+            if extract_content and results:
+                progress.update(task, description=f"[bold green]Extracting content...")
+                
+                for i, result in enumerate(results):
+                    try:
+                        content = await engine.extract_text_content(result.url)
+                        if content:
+                            result.content = content
+                        progress.update(task, 
+                                      description=f"[bold green]Extracted {i+1}/{len(results)} pages...")
+                    except Exception as e:
+                        console.print(f"[yellow]Warning: Failed to extract content from {result.url}: {str(e)}")
+                        
+    return results
+
+def display_results(results: List[SearchResult], query: str, extract_content: bool):
+    """Display search results in a formatted table."""
+    
+    if not results:
+        console.print("[red]No search results found.")
+        return
+        
+    # Group results by source
+    by_source = {}
+    for result in results:
+        if result.source not in by_source:
+            by_source[result.source] = []
+        by_source[result.source].append(result)
+        
+    console.print(f"\n[bold green]Search Results for: [white]{query}[/white][/bold green]")
+    console.print(f"[dim]Found {len(results)} results\n")
+    
+    for source, source_results in by_source.items():
+        table = Table(
+            title=f"{source.title()} Results",
+            show_header=True,
+            header_style="bold magenta",
+            border_style="blue"
+        )
+        
+        table.add_column("Pos", style="dim", width=4)
+        table.add_column("Title", style="bold blue", min_width=30)
+        table.add_column("URL", style="cyan", min_width=30)
+        table.add_column("Snippet", min_width=40)
+        
+        for result in source_results:
+            # Truncate long text
+            title = result.title[:80] + "..." if len(result.title) > 80 else result.title
+            url = result.url[:60] + "..." if len(result.url) > 60 else result.url
+            snippet = result.snippet[:100] + "..." if len(result.snippet) > 100 else result.snippet
+            
+            table.add_row(
+                str(result.position),
+                title,
+                url,
+                snippet
+            )
+            
+            # Show extracted content if available
+            if extract_content and hasattr(result, 'content') and result.content:
+                content_preview = result.content[:200] + "..." if len(result.content) > 200 else result.content
+                table.add_row(
+                    "",
+                    "[dim]Content:[/dim]",
+                    "",
+                    f"[italic]{content_preview}[/italic]"
+                )
+                table.add_row("", "", "", "")  # Add spacing
+                
+        console.print(table)
+        console.print()
+
+def output_json_results(results: List[SearchResult]):
+    """Output results in JSON format."""
+    
+    json_results = []
+    for result in results:
+        result_dict = {
+            "title": result.title,
+            "url": result.url,
+            "snippet": result.snippet,
+            "position": result.position,
+            "source": result.source,
+            "timestamp": result.timestamp
+        }
+        
+        if hasattr(result, 'content'):
+            result_dict["content"] = result.content
+            
+        json_results.append(result_dict)
+        
+    print(json.dumps(json_results, indent=2, ensure_ascii=False))
+
+@click.group()
+def main():
+    """Playwright Search Tool - Reliable web search using browser automation."""
+    pass
+
+@main.command()
+@click.argument('query', type=str)  
+@click.option('-n', '--num-results', default=10, help='Number of search results')
+@click.option('-e', '--engine', default='google', type=click.Choice(['google', 'bing', 'duckduckgo', 'ddg', 'all']))
+@click.option('--headless/--no-headless', default=True)
+@click.option('--timeout', default=30)
+@click.option('--extract-content', '-c', is_flag=True)
+@click.option('--json', 'output_json', is_flag=True)
+@click.option('--verbose', '-v', is_flag=True)
+def search(query: str, num_results: int, engine: str, headless: bool, 
+           timeout: int, extract_content: bool, output_json: bool, verbose: bool):
+    """Search the web using Playwright."""
+    
+    if verbose:
+        import logging
+        logging.basicConfig(level=logging.INFO)
+        
+    if engine == 'all':
+        engines = ['google', 'bing', 'duckduckgo']
+    else:
+        engines = [engine]
+        
+    all_results = []
+    
+    for engine_name in engines:
+        engine_class = ENGINES[engine_name]
+        results = asyncio.run(
+            search_with_engine(engine_class, query, num_results, headless, timeout * 1000, extract_content)
+        )
+        all_results.extend(results)
+        
+    if output_json:
+        output_json_results(all_results)
+    else:
+        display_results(all_results, query, extract_content)
+
+@main.command()
+@click.argument('url', type=str)
+@click.option('--headless/--no-headless', default=True)
+@click.option('--timeout', default=30)
+@click.option('--json', 'output_json', is_flag=True)
+def extract(url: str, headless: bool, timeout: int, output_json: bool):
+    """Extract text content from a specific URL."""
+    
+    async def extract_content():
+        async with GoogleEngine(headless=headless, timeout=timeout * 1000) as engine:
+            content = await engine.extract_text_content(url)
+            return content
+            
+    content = asyncio.run(extract_content())
+    
+    if output_json:
+        result = {
+            "url": url,
+            "content": content,
+            "timestamp": time.time()
+        }
+        print(json.dumps(result, indent=2, ensure_ascii=False))
+    else:
+        if content:
+            console.print(f"[bold green]Content from: [link]{url}[/link][/bold green]\n")
+            console.print(Panel(content, border_style="blue"))
+        else:
+            console.print(f"[red]Failed to extract content from: {url}")
+
+if __name__ == "__main__":
+    main()
