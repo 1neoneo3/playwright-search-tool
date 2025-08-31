@@ -6,6 +6,7 @@ import logging
 from bs4 import BeautifulSoup
 
 from .search_engine import SearchEngine, SearchResult
+from .date_utils import extract_date_from_snippet, calculate_recency_score
 
 logger = logging.getLogger(__name__)
 
@@ -114,12 +115,18 @@ class GoogleEngine(SearchEngine):
                             break
                     
                     if not is_duplicate:
+                        # Extract date from snippet
+                        extracted_date = extract_date_from_snippet(snippet)
+                        recency_score = calculate_recency_score(extracted_date)
+                        
                         result = SearchResult(
                             title=title.strip(),
                             url=href,
                             snippet=snippet.strip(),
                             position=position,
-                            source="google"
+                            source="google",
+                            extracted_date=extracted_date,
+                            recency_score=recency_score
                         )
                         results.append(result)
                         position += 1
@@ -178,12 +185,18 @@ class BingEngine(SearchEngine):
                     if snippet_element:
                         snippet = await snippet_element.inner_text()
                         
+                    # Extract date from snippet
+                    extracted_date = extract_date_from_snippet(snippet)
+                    recency_score = calculate_recency_score(extracted_date)
+                    
                     result = SearchResult(
                         title=title.strip(),
                         url=href,
                         snippet=snippet.strip(),
                         position=position,
-                        source="bing"
+                        source="bing",
+                        extracted_date=extracted_date,
+                        recency_score=recency_score
                     )
                     results.append(result)
                     position += 1
@@ -244,12 +257,18 @@ class DuckDuckGoEngine(SearchEngine):
                     if snippet_element:
                         snippet = await snippet_element.inner_text()
                         
+                    # Extract date from snippet
+                    extracted_date = extract_date_from_snippet(snippet)
+                    recency_score = calculate_recency_score(extracted_date)
+                    
                     result = SearchResult(
                         title=title.strip(),
                         url=href,
                         snippet=snippet.strip(),
                         position=position,
-                        source="duckduckgo"
+                        source="duckduckgo",
+                        extracted_date=extracted_date,
+                        recency_score=recency_score
                     )
                     results.append(result)
                     position += 1

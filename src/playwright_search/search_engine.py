@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import List, Optional, Dict, Any
 from playwright.async_api import async_playwright, Page, Browser
+from datetime import datetime
 import asyncio
 import time
 import random
@@ -21,6 +22,8 @@ class SearchResult:
     position: int
     source: str = "unknown"
     timestamp: Optional[float] = None
+    extracted_date: Optional[datetime] = None
+    recency_score: float = 0.0
     
     def __post_init__(self):
         if self.timestamp is None:

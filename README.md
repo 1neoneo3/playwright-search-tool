@@ -7,6 +7,7 @@ A powerful, reliable web search tool using Playwright for browser automation. Th
 - **Multiple Search Engines**: Google, Bing, DuckDuckGo support
 - **Browser Automation**: Uses Playwright for reliable, JavaScript-enabled searches
 - **Content Extraction**: Extract full page content from search results
+- **Date Filtering**: Filter results by recency and sort by date
 - **Rich CLI Interface**: Beautiful terminal output with progress indicators
 - **JSON Output**: Machine-readable output for automation
 - **Stealth Mode**: Avoids detection with realistic browser behavior
@@ -66,6 +67,15 @@ psearch "debugging tips" --verbose
 
 # Non-headless mode (show browser)
 psearch "automation testing" --no-headless
+
+# Filter to recent results only (last 3 months)
+psearch "Python news" --recent-only
+
+# Sort results by date (most recent first)
+psearch "AI developments" --sort-by-date
+
+# Custom recency window (last 6 months)
+psearch "tech trends" --recent-only --months 6
 ```
 
 ### Content Extraction
@@ -91,6 +101,9 @@ Options:
   --headless / --no-headless     Run browser in headless mode (default: headless)
   --timeout INTEGER              Timeout in seconds (default: 30)
   -c, --extract-content          Extract full content from result pages
+  -r, --recent-only              Only show results from the last 3 months
+  -s, --sort-by-date             Sort results by date (most recent first)
+  --months INTEGER               Number of months to consider as recent (default: 3)
   --json                         Output results in JSON format
   -v, --verbose                  Enable verbose logging
 ```

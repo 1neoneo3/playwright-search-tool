@@ -16,6 +16,7 @@ import logging
 from .engines import GoogleEngine, BingEngine, DuckDuckGoEngine
 from .search_engine import SearchResult
 from .content_extractor import ContentExtractor
+from .date_utils import filter_and_sort_by_date
 
 console = Console()
 logger = logging.getLogger(__name__)
@@ -70,7 +71,7 @@ async def search_with_engine(engine_class, query: str, num_results: int,
                         
     return results
 
-def display_results(results: List[SearchResult], query: str, extract_content: bool):
+def display_results(results: List[SearchResult], query: str, extract_content: bool, show_dates: bool = False):
     """Display search results in a formatted table."""
     
     if not results:
@@ -99,6 +100,8 @@ def display_results(results: List[SearchResult], query: str, extract_content: bo
         table.add_column("Title", style="bold blue", min_width=30)
         table.add_column("URL", style="cyan", min_width=30)
         table.add_column("Snippet", min_width=40)
+        if show_dates:
+            table.add_column("Date", style="green", width=12)
         
         for result in source_results:
             # Truncate long text
@@ -106,12 +109,28 @@ def display_results(results: List[SearchResult], query: str, extract_content: bo
             url = result.url[:60] + "..." if len(result.url) > 60 else result.url
             snippet = result.snippet[:100] + "..." if len(result.snippet) > 100 else result.snippet
             
-            table.add_row(
-                str(result.position),
-                title,
-                url,
-                snippet
-            )
+            # Format date if available
+            date_str = ""
+            if show_dates and hasattr(result, 'extracted_date') and result.extracted_date:
+                date_str = result.extracted_date.strftime("%Y-%m-%d")
+            elif show_dates:
+                date_str = "No date"
+            
+            if show_dates:
+                table.add_row(
+                    str(result.position),
+                    title,
+                    url,
+                    snippet,
+                    date_str
+                )
+            else:
+                table.add_row(
+                    str(result.position),
+                    title,
+                    url,
+                    snippet
+                )
             
             # Show extracted content if available
             if extract_content and hasattr(result, 'content') and result.content:
@@ -150,6 +169,12 @@ def output_json_results(results: List[SearchResult]):
         if hasattr(result, 'content'):
             result_dict["content"] = result.content
             
+        if hasattr(result, 'extracted_date') and result.extracted_date:
+            result_dict["extracted_date"] = result.extracted_date.isoformat()
+            
+        if hasattr(result, 'recency_score'):
+            result_dict["recency_score"] = result.recency_score
+            
         json_results.append(result_dict)
         
     print(json.dumps(json_results, indent=2, ensure_ascii=False))
@@ -166,10 +191,14 @@ def main():
 @click.option('--headless/--no-headless', default=True)
 @click.option('--timeout', default=30)
 @click.option('--extract-content', '-c', is_flag=True)
+@click.option('--recent-only', '-r', is_flag=True, help='Only show results from the last 3 months')
+@click.option('--sort-by-date', '-s', is_flag=True, help='Sort results by date (most recent first)')
+@click.option('--months', default=3, help='Number of months to consider as recent (default: 3)')
 @click.option('--json', 'output_json', is_flag=True)
 @click.option('--verbose', '-v', is_flag=True)
 def search(query: str, num_results: int, engine: str, headless: bool, 
-           timeout: int, extract_content: bool, output_json: bool, verbose: bool):
+           timeout: int, extract_content: bool, recent_only: bool, sort_by_date: bool, 
+           months: int, output_json: bool, verbose: bool):
     """Search the web using Playwright."""
     
     if verbose:
@@ -190,10 +219,23 @@ def search(query: str, num_results: int, engine: str, headless: bool,
         )
         all_results.extend(results)
         
+    # Apply date filtering and sorting
+    if recent_only or sort_by_date:
+        scored_results = filter_and_sort_by_date(all_results, recent_only, months)
+        filtered_results = [result for result, score in scored_results]
+        
+        # Show filtering stats
+        if recent_only and len(filtered_results) < len(all_results):
+            console.print(f"[yellow]Filtered to {len(filtered_results)} recent results (last {months} months) from {len(all_results)} total results[/yellow]\n")
+        elif sort_by_date:
+            console.print(f"[dim]Sorted {len(all_results)} results by date (most recent first)[/dim]\n")
+            
+        all_results = filtered_results
+        
     if output_json:
         output_json_results(all_results)
     else:
-        display_results(all_results, query, extract_content)
+        display_results(all_results, query, extract_content, recent_only or sort_by_date)
 
 @main.command()
 @click.argument('url', type=str)
