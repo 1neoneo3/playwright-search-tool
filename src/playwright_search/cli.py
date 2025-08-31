@@ -50,15 +50,23 @@ async def search_with_engine(engine_class, query: str, num_results: int,
             if extract_content and results:
                 progress.update(task, description=f"[bold green]Extracting content...")
                 
+                # Extract content with better error handling
+                successful_extractions = 0
                 for i, result in enumerate(results):
                     try:
+                        progress.update(task, 
+                                      description=f"[bold green]Extracting from {result.title[:30]}...")
                         content = await engine.extract_text_content(result.url)
                         if content:
                             result.content = content
+                            successful_extractions += 1
                         progress.update(task, 
-                                      description=f"[bold green]Extracted {i+1}/{len(results)} pages...")
+                                      description=f"[bold green]Extracted {i+1}/{len(results)} pages ({successful_extractions} successful)...")
                     except Exception as e:
                         console.print(f"[yellow]Warning: Failed to extract content from {result.url}: {str(e)}")
+                
+                if successful_extractions < len(results):
+                    console.print(f"[yellow]Note: Successfully extracted content from {successful_extractions}/{len(results)} pages[/yellow]")
                         
     return results
 
@@ -107,12 +115,18 @@ def display_results(results: List[SearchResult], query: str, extract_content: bo
             
             # Show extracted content if available
             if extract_content and hasattr(result, 'content') and result.content:
-                content_preview = result.content[:200] + "..." if len(result.content) > 200 else result.content
+                # Split content into paragraphs for better display
+                content_lines = result.content.split('\n')
+                meaningful_lines = [line.strip() for line in content_lines if line.strip()][:3]  # First 3 paragraphs
+                content_preview = '\n'.join(meaningful_lines)
+                if len(result.content) > 500:
+                    content_preview += "\n[dim]...(content truncated)[/dim]"
+                
                 table.add_row(
                     "",
                     "[dim]Content:[/dim]",
                     "",
-                    f"[italic]{content_preview}[/italic]"
+                    f"[italic green]{content_preview}[/italic green]"
                 )
                 table.add_row("", "", "", "")  # Add spacing
                 
@@ -186,13 +200,28 @@ def search(query: str, num_results: int, engine: str, headless: bool,
 @click.option('--headless/--no-headless', default=True)
 @click.option('--timeout', default=30)
 @click.option('--json', 'output_json', is_flag=True)
-def extract(url: str, headless: bool, timeout: int, output_json: bool):
-    """Extract text content from a specific URL."""
+@click.option('--verbose', '-v', is_flag=True)
+def extract(url: str, headless: bool, timeout: int, output_json: bool, verbose: bool):
+    """Extract text content from a specific URL with improved content detection."""
+    
+    if verbose:
+        import logging
+        logging.basicConfig(level=logging.INFO)
     
     async def extract_content():
-        async with GoogleEngine(headless=headless, timeout=timeout * 1000) as engine:
-            content = await engine.extract_text_content(url)
-            return content
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[bold blue]Extracting content..."),
+            console=console,
+            transient=True
+        ) as progress:
+            task = progress.add_task("extract", total=None)
+            
+            async with GoogleEngine(headless=headless, timeout=timeout * 1000) as engine:
+                progress.update(task, description=f"[bold blue]Loading {url[:50]}...")
+                content = await engine.extract_text_content(url)
+                progress.update(task, description=f"[bold green]Content extracted!")
+                return content
             
     content = asyncio.run(extract_content())
     
@@ -200,15 +229,21 @@ def extract(url: str, headless: bool, timeout: int, output_json: bool):
         result = {
             "url": url,
             "content": content,
-            "timestamp": time.time()
+            "timestamp": time.time(),
+            "word_count": len(content.split()) if content else 0,
+            "character_count": len(content) if content else 0
         }
         print(json.dumps(result, indent=2, ensure_ascii=False))
     else:
         if content:
-            console.print(f"[bold green]Content from: [link]{url}[/link][/bold green]\n")
-            console.print(Panel(content, border_style="blue"))
+            word_count = len(content.split())
+            char_count = len(content)
+            console.print(f"[bold green]Content extracted from: [cyan]{url}[/cyan][/bold green]")
+            console.print(f"[dim]Words: {word_count} | Characters: {char_count}[/dim]\n")
+            console.print(Panel(content, border_style="green", title="[bold]Extracted Content[/bold]"))
         else:
-            console.print(f"[red]Failed to extract content from: {url}")
+            console.print(f"[red]Failed to extract content from: {url}[/red]")
+            console.print("[yellow]Try using --verbose flag to see detailed error information[/yellow]")
 
 if __name__ == "__main__":
     main()

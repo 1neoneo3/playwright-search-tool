@@ -103,7 +103,7 @@ class SearchEngine(ABC):
         pass
         
     async def extract_text_content(self, url: str) -> Optional[str]:
-        """Extract text content from a webpage."""
+        """Extract text content from a webpage with improved content detection."""
         try:
             await self.page.goto(url, wait_until='networkidle', timeout=self.timeout)
             await self.random_delay(0.5, 1.5)
@@ -114,17 +114,28 @@ class SearchEngine(ABC):
                 const selectors = [
                     'nav', 'header', 'footer', '.ads', '.advertisement', 
                     '.sidebar', '.menu', '.navigation', '[role="banner"]',
-                    '[role="navigation"]', '.cookie', '.popup', '.modal'
+                    '[role="navigation"]', '.cookie', '.popup', '.modal',
+                    '.related-posts', '.comments', '.social-share', '.breadcrumb'
                 ];
                 selectors.forEach(sel => {
                     document.querySelectorAll(sel).forEach(el => el.remove());
                 });
             """)
             
-            # Try to find main content
+            # Try to find main content with priority order
             content_selectors = [
-                'main', 'article', '[role="main"]', '.content', 
-                '.main-content', '.article-body', '.post-content'
+                'main article',
+                'main',
+                'article', 
+                '[role="main"]', 
+                '.content-body',
+                '.post-body',
+                '.entry-content',
+                '.article-content',
+                '.main-content', 
+                '.article-body', 
+                '.post-content',
+                '.content'
             ]
             
             content = None
@@ -132,16 +143,26 @@ class SearchEngine(ABC):
                 try:
                     element = await self.page.wait_for_selector(selector, timeout=2000)
                     if element:
-                        content = await element.inner_text()
-                        break
+                        text = await element.inner_text()
+                        # Check if we got meaningful content (not just whitespace/short text)
+                        if text and len(text.strip()) > 100:
+                            content = text
+                            break
                 except:
                     continue
                     
             # Fallback to body if no main content found
             if not content:
                 content = await self.page.evaluate('document.body.innerText')
+            
+            if content:
+                # Clean up the content
+                lines = content.split('\n')
+                # Remove empty lines and very short lines that are likely navigation
+                cleaned_lines = [line.strip() for line in lines if line.strip() and len(line.strip()) > 10]
+                content = '\n'.join(cleaned_lines[:200])  # Limit to first 200 meaningful lines
                 
-            return content[:5000] if content else None  # Limit content length
+            return content[:3000] if content else None  # Increased limit but still reasonable
             
         except Exception as e:
             logger.error(f"Failed to extract content from {url}: {str(e)}")

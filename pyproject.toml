@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "playwright-search-tool"
-version = "0.1.2"
+version = "0.2.0"
 description = "A powerful web search tool using Playwright for reliable search results"
 license = {text = "MIT"}
 authors = [
