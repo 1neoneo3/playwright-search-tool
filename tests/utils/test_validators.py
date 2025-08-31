@@ -35,7 +35,6 @@ class TestInputValidator:
         result = InputValidator.validate_engines(["google", "google", "bing"])
         assert set(result) == {"google", "bing"}
 
-
     def test_validate_engines_invalid(self):
         """Test validate_engines with invalid inputs."""
         with pytest.raises(ValidationError):

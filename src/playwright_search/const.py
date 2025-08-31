@@ -1,6 +1,5 @@
 """Constants and configuration for Playwright Search Tool."""
 
-
 # Search Engine Configuration
 DEFAULT_ENGINES = ["google", "bing"]
 ENGINE_ALIASES = {
