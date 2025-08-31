@@ -1,0 +1,1 @@
+"""Tests for playwright_search package."""

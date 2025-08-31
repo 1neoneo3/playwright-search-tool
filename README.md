@@ -267,6 +267,59 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
+## Testing
+
+The project includes comprehensive unit tests for all core components:
+
+### Test Structure
+```
+tests/
+├── core/                    # Core module tests  
+│   └── test_models.py      # Data model tests
+├── utils/                   # Utility module tests
+│   ├── test_validators.py  # Input validation tests
+│   ├── test_date_parser.py # Date parsing tests
+│   └── test_result_processor.py # Result processing tests
+├── engines/                 # Search engine tests
+│   └── test_base_engine.py # Base engine functionality
+└── test_parallel_search.py # Parallel search tests
+```
+
+### Running Tests
+
+#### Simple Test Runner (No Dependencies)
+```bash
+# Run basic tests without external dependencies
+python3 test_runner_simple.py
+```
+
+#### Full Test Suite (Requires pytest)
+```bash
+# Install test dependencies first
+pip install pytest pytest-asyncio
+
+# Run full test suite
+pytest
+
+# Run with coverage
+pytest --cov=src/playwright_search --cov-report=html
+```
+
+#### Test Categories
+- **Unit Tests**: Test individual components in isolation
+- **Integration Tests**: Test component interactions
+- **Mock Tests**: Test browser automation without actual browsers
+
+### Test Coverage
+The test suite covers:
+- ✅ Data model validation and behavior
+- ✅ Input validation and error handling
+- ✅ Date parsing and recency scoring
+- ✅ Result filtering, sorting, and deduplication
+- ✅ Search plan generation and task creation
+- ✅ Configuration management
+- ✅ Error handling and edge cases
+
 ## Supported Search Engines
 
 | Engine | Identifier | Features |
