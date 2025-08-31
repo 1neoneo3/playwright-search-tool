@@ -2,12 +2,10 @@
 
 
 # Search Engine Configuration
-DEFAULT_ENGINES = ["google", "bing", "duckduckgo"]
+DEFAULT_ENGINES = ["google", "bing"]
 ENGINE_ALIASES = {
-    "ddg": "duckduckgo",
     "google": "google",
     "bing": "bing",
-    "duckduckgo": "duckduckgo",
 }
 
 # Timeout Configuration (milliseconds)
@@ -64,11 +62,6 @@ BING_SELECTORS = {
     "snippet": ".b_caption p, .b_descript",
 }
 
-DUCKDUCKGO_SELECTORS = {
-    "results": '[data-testid="result"], article',
-    "title_link": 'h2 a, [data-testid="result-title-a"]',
-    "snippet": '[data-result="snippet"]',
-}
 
 # Content Extraction Selectors
 CONTENT_SELECTORS = [

@@ -214,8 +214,6 @@ def test_constants():
         # Test engine aliases
         assert "google" in ENGINE_ALIASES
         assert "bing" in ENGINE_ALIASES
-        assert "ddg" in ENGINE_ALIASES
-        assert ENGINE_ALIASES["ddg"] == "duckduckgo"
         print("  ✅ Engine aliases")
 
         # Test plan templates

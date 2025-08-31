@@ -13,8 +13,6 @@ class TestInputValidator:
         assert InputValidator.validate_engine("google") == "google"
         assert InputValidator.validate_engine("GOOGLE") == "google"
         assert InputValidator.validate_engine("bing") == "bing"
-        assert InputValidator.validate_engine("duckduckgo") == "duckduckgo"
-        assert InputValidator.validate_engine("ddg") == "duckduckgo"  # alias
 
     def test_validate_engine_invalid(self):
         """Test validate_engine with invalid engines."""
@@ -37,9 +35,6 @@ class TestInputValidator:
         result = InputValidator.validate_engines(["google", "google", "bing"])
         assert set(result) == {"google", "bing"}
 
-        # Test with aliases
-        result = InputValidator.validate_engines(["ddg", "duckduckgo"])
-        assert result == ["duckduckgo"]  # Should deduplicate aliases
 
     def test_validate_engines_invalid(self):
         """Test validate_engines with invalid inputs."""

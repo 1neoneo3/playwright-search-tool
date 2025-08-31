@@ -5,7 +5,7 @@ import time
 from typing import List, Dict, Optional, Tuple, Any
 import logging
 
-from .engines import GoogleEngine, BingEngine, DuckDuckGoEngine
+from .engines import GoogleEngine, BingEngine
 from .core.models import (
     SearchResult,
     SearchTask,
@@ -108,8 +108,6 @@ class ParallelSearchEngine:
     ENGINE_CLASSES = {
         "google": GoogleEngine,
         "bing": BingEngine,
-        "duckduckgo": DuckDuckGoEngine,
-        "ddg": DuckDuckGoEngine,
     }
 
     def __init__(

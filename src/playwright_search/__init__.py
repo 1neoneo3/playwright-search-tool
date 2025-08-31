@@ -6,7 +6,7 @@ __email__ = "assistant@example.com"
 
 from .core.base import BaseSearchEngine
 from .core.models import SearchResult, SearchEngineConfig
-from .engines import GoogleEngine, BingEngine, DuckDuckGoEngine
+from .engines import GoogleEngine, BingEngine
 from .parallel_search import SearchPlanGenerator, ParallelSearchEngine
 from .cli import main
 
@@ -16,7 +16,6 @@ __all__ = [
     "SearchEngineConfig",
     "GoogleEngine",
     "BingEngine",
-    "DuckDuckGoEngine",
     "SearchPlanGenerator",
     "ParallelSearchEngine",
     "main",

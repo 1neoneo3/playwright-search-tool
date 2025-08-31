@@ -11,7 +11,7 @@ from typing import List, Optional
 import time
 import logging
 
-from .engines import GoogleEngine, BingEngine, DuckDuckGoEngine
+from .engines import GoogleEngine, BingEngine
 from .core.models import SearchResult, SearchEngineConfig
 from .utils.result_processor import ResultProcessor
 from .parallel_search import SearchPlanGenerator, ParallelSearchEngine
@@ -22,8 +22,6 @@ logger = logging.getLogger(__name__)
 ENGINES = {
     "google": GoogleEngine,
     "bing": BingEngine,
-    "duckduckgo": DuckDuckGoEngine,
-    "ddg": DuckDuckGoEngine,
     "all": None,  # Special case for all engines
 }
 
@@ -216,7 +214,7 @@ def main():
     "-e",
     "--engine",
     default="google",
-    type=click.Choice(["google", "bing", "duckduckgo", "ddg", "all"]),
+    type=click.Choice(["google", "bing", "all"]),
 )
 @click.option("--headless/--no-headless", default=True)
 @click.option("--timeout", default=30)
@@ -256,7 +254,7 @@ def search(
         logging.basicConfig(level=logging.INFO)
 
     if engine == "all":
-        engines = ["google", "bing", "duckduckgo"]
+        engines = ["google", "bing"]
     else:
         engines = [engine]
 
