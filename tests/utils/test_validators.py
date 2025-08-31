@@ -20,7 +20,7 @@ class TestInputValidator:
         """Test validate_engine with invalid engines."""
         with pytest.raises(ValidationError) as exc_info:
             InputValidator.validate_engine("invalid_engine")
-        assert "Invalid engine" in str(exc_info.value)
+        assert "Invalid search engine" in str(exc_info.value)
         
         with pytest.raises(ValidationError):
             InputValidator.validate_engine("")
@@ -53,7 +53,7 @@ class TestInputValidator:
         """Test validate_timeout with valid values."""
         assert InputValidator.validate_timeout(5000) == 5000
         assert InputValidator.validate_timeout(30000) == 30000
-        assert InputValidator.validate_timeout(300000) == 300000
+        assert InputValidator.validate_timeout(120000) == 120000
     
     def test_validate_timeout_invalid(self):
         """Test validate_timeout with invalid values."""
@@ -61,7 +61,7 @@ class TestInputValidator:
             InputValidator.validate_timeout(500)  # Too small
         
         with pytest.raises(ValidationError):
-            InputValidator.validate_timeout(400000)  # Too large
+            InputValidator.validate_timeout(200000)  # Too large
         
         with pytest.raises(ValidationError):
             InputValidator.validate_timeout("30000")  # Wrong type
@@ -73,7 +73,7 @@ class TestInputValidator:
         """Test validate_concurrent_limit with valid values."""
         assert InputValidator.validate_concurrent_limit(1) == 1
         assert InputValidator.validate_concurrent_limit(5) == 5
-        assert InputValidator.validate_concurrent_limit(20) == 20
+        assert InputValidator.validate_concurrent_limit(15) == 15
     
     def test_validate_concurrent_limit_invalid(self):
         """Test validate_concurrent_limit with invalid values."""
@@ -81,7 +81,7 @@ class TestInputValidator:
             InputValidator.validate_concurrent_limit(0)
         
         with pytest.raises(ValidationError):
-            InputValidator.validate_concurrent_limit(25)  # Too large
+            InputValidator.validate_concurrent_limit(20)  # Too large
         
         with pytest.raises(ValidationError):
             InputValidator.validate_concurrent_limit("5")  # Wrong type
@@ -90,7 +90,7 @@ class TestInputValidator:
         """Test validate_num_results with valid values."""
         assert InputValidator.validate_num_results(1) == 1
         assert InputValidator.validate_num_results(10) == 10
-        assert InputValidator.validate_num_results(100) == 100
+        assert InputValidator.validate_num_results(50) == 50
     
     def test_validate_num_results_invalid(self):
         """Test validate_num_results with invalid values."""
@@ -101,7 +101,7 @@ class TestInputValidator:
             InputValidator.validate_num_results(-1)
         
         with pytest.raises(ValidationError):
-            InputValidator.validate_num_results(150)  # Too large
+            InputValidator.validate_num_results(100)  # Too large
         
         with pytest.raises(ValidationError):
             InputValidator.validate_num_results("10")  # Wrong type

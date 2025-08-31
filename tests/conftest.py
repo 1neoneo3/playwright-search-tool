@@ -1,16 +1,24 @@
 """Pytest configuration and test fixtures."""
 
 import sys
+import asyncio
 from pathlib import Path
+from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from datetime import datetime
+import time
 
 # Add src to Python path for tests
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root / "src"))
 
+# Configure asyncio for pytest-asyncio
+import pytest_asyncio
+
+# Mock playwright globally before any imports
+sys.modules['playwright'] = Mock()
+sys.modules['playwright.async_api'] = Mock()
+
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
-from datetime import datetime
-import time
 
 
 @pytest.fixture
@@ -100,16 +108,38 @@ def sample_search_plan():
 @pytest.fixture(autouse=True)
 def mock_playwright_import():
     """Automatically mock playwright imports for all tests."""
+    # Enhanced mocking for async playwright
+    mock_pw = Mock()
+    mock_async_pw = Mock()
+    
+    # Mock async_playwright function
+    async def mock_start():
+        return mock_pw
+    
+    mock_async_pw_instance = Mock()
+    mock_async_pw_instance.start = mock_start
+    mock_async_pw.return_value = mock_async_pw_instance
+    
     with patch.dict('sys.modules', {
         'playwright': Mock(),
-        'playwright.async_api': Mock(),
+        'playwright.async_api': Mock(async_playwright=mock_async_pw),
     }):
         yield
 
 
-# Mark async tests
+# Configure pytest-asyncio
+pytest_plugins = ('pytest_asyncio',)
+
+
+def pytest_configure(config):
+    """Configure pytest settings."""
+    # Ensure asyncio mode is auto
+    config.option.asyncio_mode = "auto"
+
+
+# Mark async tests automatically
 def pytest_collection_modifyitems(config, items):
     """Auto-mark async tests."""
     for item in items:
-        if 'asyncio' in item.keywords or 'async' in item.name:
+        if asyncio.iscoroutinefunction(item.function):
             item.add_marker(pytest.mark.asyncio)

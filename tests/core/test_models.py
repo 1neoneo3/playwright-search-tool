@@ -152,7 +152,8 @@ class TestSearchPlan:
         with patch('time.time', return_value=12345.678):
             plan = SearchPlan(
                 topic="Programming",
-                tasks=tasks
+                tasks=tasks,
+                created_at=12345.678
             )
         
         assert plan.topic == "Programming"
@@ -162,7 +163,7 @@ class TestSearchPlan:
     def test_auto_timestamp(self):
         """Test that created_at is automatically set."""
         tasks = [SearchTask("test", "google")]
-        plan = SearchPlan("Test Topic", tasks)
+        plan = SearchPlan("Test Topic", tasks, time.time())
         
         assert plan.created_at is not None
         assert isinstance(plan.created_at, float)
@@ -175,7 +176,7 @@ class TestParallelSearchResult:
     
     def test_creation(self):
         """Test ParallelSearchResult creation."""
-        plan = SearchPlan("Test", [SearchTask("test", "google")])
+        plan = SearchPlan("Test", [SearchTask("test", "google")], time.time())
         results = {"test (google)": [
             SearchResult("Title", "https://example.com", "Snippet", 1)
         ]}
