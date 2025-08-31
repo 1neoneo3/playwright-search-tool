@@ -4,13 +4,13 @@ A powerful, reliable web search tool using Playwright for browser automation. Th
 
 ## Features
 
-- 🔍 **Multiple Search Engines**: Google, Bing, DuckDuckGo support
-- 🌐 **Browser Automation**: Uses Playwright for reliable, JavaScript-enabled searches
-- 📄 **Content Extraction**: Extract full page content from search results
-- 🎨 **Rich CLI Interface**: Beautiful terminal output with progress indicators
-- 📊 **JSON Output**: Machine-readable output for automation
-- 🤖 **Stealth Mode**: Avoids detection with realistic browser behavior
-- ⚡ **Fast & Concurrent**: Parallel processing for multiple engines
+- **Multiple Search Engines**: Google, Bing, DuckDuckGo support
+- **Browser Automation**: Uses Playwright for reliable, JavaScript-enabled searches
+- **Content Extraction**: Extract full page content from search results
+- **Rich CLI Interface**: Beautiful terminal output with progress indicators
+- **JSON Output**: Machine-readable output for automation
+- **Stealth Mode**: Avoids detection with realistic browser behavior
+- **Fast & Concurrent**: Parallel processing for multiple engines
 
 ## Installation
 
