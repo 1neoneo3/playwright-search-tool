@@ -1,0 +1,6 @@
+# Core dependencies for playwright-search-tool
+playwright>=1.40.0
+click>=8.0.0
+rich>=13.0.0
+httpx>=0.24.0
+fake-useragent>=1.4.0

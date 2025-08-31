@@ -38,7 +38,7 @@ jobs:
         pip install -r requirements.txt
         pip install -r requirements-test.txt
         # Additional tools for CI
-        pip install mypy pip-audit
+        pip install mypy pip-audit ruff
 
     - name: Install Playwright and dependencies
       run: |
