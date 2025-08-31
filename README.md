@@ -8,10 +8,11 @@ A powerful, reliable web search tool using Playwright for browser automation. Th
 - **Browser Automation**: Uses Playwright for reliable, JavaScript-enabled searches
 - **Content Extraction**: Extract full page content from search results
 - **Date Filtering**: Filter results by recency and sort by date
+- **Parallel Search**: Execute multiple searches concurrently with intelligent planning
 - **Rich CLI Interface**: Beautiful terminal output with progress indicators
 - **JSON Output**: Machine-readable output for automation
 - **Stealth Mode**: Avoids detection with realistic browser behavior
-- **Fast & Concurrent**: Parallel processing for multiple engines
+- **Fast & Concurrent**: Parallel processing for multiple engines and keywords
 
 ## Installation
 
@@ -76,6 +77,15 @@ psearch "AI developments" --sort-by-date
 
 # Custom recency window (last 6 months)
 psearch "tech trends" --recent-only --months 6
+
+# Parallel search with automatic keyword planning
+psearch plan "AI agents" --type technology --execute
+
+# Custom keywords with parallel execution
+psearch plan "Claude Code" --keywords "Claude Code 使い方,Claude Code MCP" --execute
+
+# Create search plan without executing
+psearch plan "machine learning" --type research
 ```
 
 ### Content Extraction
@@ -104,6 +114,27 @@ Options:
   -r, --recent-only              Only show results from the last 3 months
   -s, --sort-by-date             Sort results by date (most recent first)
   --months INTEGER               Number of months to consider as recent (default: 3)
+  --json                         Output results in JSON format
+  -v, --verbose                  Enable verbose logging
+```
+
+### Parallel Search Planning Command
+
+```
+psearch plan [OPTIONS] TOPIC
+
+Options:
+  --type [comprehensive|technology|research|news|comparison|tutorial]
+                                 Type of search plan (default: comprehensive)
+  --engines TEXT                 Comma-separated list of engines (default: google,bing)
+  --keywords TEXT                Custom keywords (overrides plan type)
+  -n, --num-results INTEGER     Number of results per search (default: 5)
+  --recent-only                  Filter for recent results only
+  --months INTEGER               Number of months for recent filtering (default: 3)
+  --execute                      Execute the plan immediately
+  --max-concurrent INTEGER       Maximum concurrent searches (default: 5)
+  --headless / --no-headless     Run browser in headless mode (default: headless)
+  --timeout INTEGER              Timeout per search in seconds (default: 30)
   --json                         Output results in JSON format
   -v, --verbose                  Enable verbose logging
 ```

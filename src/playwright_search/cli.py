@@ -17,6 +17,7 @@ from .engines import GoogleEngine, BingEngine, DuckDuckGoEngine
 from .search_engine import SearchResult
 from .content_extractor import ContentExtractor
 from .date_utils import filter_and_sort_by_date
+from .parallel_search import SearchPlanGenerator, ParallelSearchEngine, SearchPlan
 
 console = Console()
 logger = logging.getLogger(__name__)
@@ -286,6 +287,187 @@ def extract(url: str, headless: bool, timeout: int, output_json: bool, verbose: 
         else:
             console.print(f"[red]Failed to extract content from: {url}[/red]")
             console.print("[yellow]Try using --verbose flag to see detailed error information[/yellow]")
+
+@main.command()
+@click.argument('topic', type=str)
+@click.option('--type', 'plan_type', default='comprehensive', 
+              type=click.Choice(['comprehensive', 'technology', 'research', 'news', 'comparison', 'tutorial']),
+              help='Type of search plan to generate')
+@click.option('--engines', default='google,bing', help='Comma-separated list of engines (default: google,bing)')
+@click.option('--keywords', help='Comma-separated list of custom keywords (overrides plan type)')
+@click.option('-n', '--num-results', default=5, help='Number of results per search')
+@click.option('--recent-only', is_flag=True, help='Filter for recent results only')
+@click.option('--months', default=3, help='Number of months for recent filtering')
+@click.option('--execute', is_flag=True, help='Execute the plan immediately after creating it')
+@click.option('--max-concurrent', default=5, help='Maximum concurrent searches')
+@click.option('--headless/--no-headless', default=True)
+@click.option('--timeout', default=30, help='Timeout per search in seconds')
+@click.option('--json', 'output_json', is_flag=True)
+@click.option('--verbose', '-v', is_flag=True)
+def plan(topic: str, plan_type: str, engines: str, keywords: Optional[str], 
+         num_results: int, recent_only: bool, months: int, execute: bool,
+         max_concurrent: int, headless: bool, timeout: int, output_json: bool, verbose: bool):
+    """Create and optionally execute a parallel search plan for comprehensive topic research."""
+    
+    if verbose:
+        import logging
+        logging.basicConfig(level=logging.INFO)
+    
+    # Parse engines
+    engine_list = [e.strip() for e in engines.split(',') if e.strip()]
+    
+    # Create search plan
+    if keywords:
+        keyword_list = [k.strip() for k in keywords.split(',') if k.strip()]
+        search_plan = SearchPlanGenerator.create_custom_plan(
+            topic=topic,
+            keywords=keyword_list,
+            engines=engine_list,
+            num_results=num_results,
+            recent_only=recent_only,
+            months=months
+        )
+    else:
+        search_plan = SearchPlanGenerator.create_plan(
+            topic=topic,
+            plan_type=plan_type,
+            engines=engine_list,
+            num_results=num_results,
+            recent_only=recent_only,
+            months=months
+        )
+    
+    # Display plan
+    if not output_json:
+        console.print(f"\n[bold green]Search Plan for: [white]{topic}[/white][/bold green]")
+        console.print(f"[dim]Plan Type: {plan_type}, Tasks: {len(search_plan.tasks)}[/dim]\n")
+        
+        # Show search tasks
+        table = Table(title="Planned Search Tasks", show_header=True, header_style="bold magenta")
+        table.add_column("No.", width=4)
+        table.add_column("Keyword", min_width=30)
+        table.add_column("Engine", width=10)
+        table.add_column("Options", min_width=20)
+        
+        for i, task in enumerate(search_plan.tasks, 1):
+            options = []
+            if task.recent_only:
+                options.append(f"Recent {task.months}m")
+            if task.extract_content:
+                options.append("Content")
+            
+            table.add_row(
+                str(i),
+                task.keyword,
+                task.engine.title(),
+                ", ".join(options) or "Standard"
+            )
+        
+        console.print(table)
+    
+    # Execute if requested
+    if execute:
+        console.print(f"\n[yellow]Executing search plan with max {max_concurrent} concurrent searches...[/yellow]")
+        
+        # Execute parallel search
+        parallel_engine = ParallelSearchEngine(max_concurrent, headless, timeout)
+        result = asyncio.run(parallel_engine.execute_plan(search_plan))
+        
+        # Generate and display summary
+        summary = parallel_engine.generate_search_summary(result)
+        
+        if output_json:
+            # Output full results in JSON
+            json_output = {
+                'topic': topic,
+                'plan': {
+                    'type': plan_type,
+                    'tasks': len(search_plan.tasks),
+                    'engines': engine_list
+                },
+                'summary': summary,
+                'results': {}
+            }
+            
+            # Add merged results
+            merged_results = parallel_engine.merge_and_deduplicate_results(result)
+            json_output['results'] = [
+                {
+                    'title': r.title,
+                    'url': r.url,
+                    'snippet': r.snippet,
+                    'source': r.source,
+                    'search_context': getattr(r, 'search_context', ''),
+                    'extracted_date': r.extracted_date.isoformat() if hasattr(r, 'extracted_date') and r.extracted_date else None,
+                    'recency_score': getattr(r, 'recency_score', 0),
+                    'content': getattr(r, 'content', None)
+                }
+                for r in merged_results
+            ]
+            
+            print(json.dumps(json_output, indent=2, ensure_ascii=False))
+        else:
+            # Display summary
+            display_parallel_search_summary(summary, result)
+            
+            # Display merged results
+            merged_results = parallel_engine.merge_and_deduplicate_results(result)[:20]  # Limit to top 20
+            if merged_results:
+                display_results(merged_results, f"{topic} (Parallel Search)", False, True)
+    else:
+        if output_json:
+            plan_json = {
+                'topic': topic,
+                'plan_type': plan_type,
+                'tasks': [
+                    {
+                        'keyword': task.keyword,
+                        'engine': task.engine,
+                        'num_results': task.num_results,
+                        'recent_only': task.recent_only,
+                        'months': task.months,
+                        'extract_content': task.extract_content
+                    }
+                    for task in search_plan.tasks
+                ],
+                'created_at': search_plan.created_at
+            }
+            print(json.dumps(plan_json, indent=2, ensure_ascii=False))
+        else:
+            console.print(f"\n[green]Plan created successfully![/green]")
+            console.print(f"[dim]Use --execute flag to run this plan immediately[/dim]")
+
+def display_parallel_search_summary(summary: dict, result):
+    """Display summary of parallel search results."""
+    
+    console.print(f"\n[bold cyan]Parallel Search Summary[/bold cyan]")
+    
+    # Execution stats
+    stats_table = Table(show_header=False, box=None, padding=(0, 2))
+    stats_table.add_column("Label", style="dim")
+    stats_table.add_column("Value", style="bold")
+    
+    stats_table.add_row("Topic:", summary['topic'])
+    stats_table.add_row("Searches:", f"{summary['successful_searches']}/{summary['total_searches']} successful")
+    stats_table.add_row("Results:", f"{summary['unique_results']} unique ({summary['total_results']} total)")
+    stats_table.add_row("With Dates:", f"{summary['results_with_dates']} results")
+    stats_table.add_row("Execution Time:", f"{summary['execution_time']:.1f}s")
+    
+    console.print(stats_table)
+    
+    # Source distribution
+    if summary['source_distribution']:
+        console.print(f"\n[bold]Source Distribution:[/bold]")
+        for source, count in summary['source_distribution'].items():
+            console.print(f"  • {source.title()}: {count} results")
+    
+    # Errors if any
+    if result.error_count > 0:
+        console.print(f"\n[yellow]Warnings ({result.error_count} failed searches):[/yellow]")
+        for task_key, error in list(result.errors.items())[:3]:  # Show first 3 errors
+            console.print(f"  • {task_key}: {error}")
+        if len(result.errors) > 3:
+            console.print(f"  • ... and {len(result.errors) - 3} more errors")
 
 if __name__ == "__main__":
     main()
